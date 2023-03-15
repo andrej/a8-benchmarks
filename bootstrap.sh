@@ -29,6 +29,11 @@ then
 	cd "$root"
 fi
 
+if [ ! -d "$nginx_root/logs" ]
+then
+	mkdir "$nginx_root/logs"
+fi
+
 if [ ! -d "$nginx_root/install" ]
 then
 	cd "$nginx_root" &&
