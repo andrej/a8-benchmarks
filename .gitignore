@@ -1,0 +1,7 @@
+*/install
+lighttpd/lighttpd1.4
+nginx/nginx-1.22.1
+wrk
+microbenchmarks/build
+*.tar.gz
+*.log
