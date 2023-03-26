@@ -21,10 +21,10 @@ monmod. See [main monmod repository](https://github.com/andrej/monmod).
 ### To run benchmarks natively
 
 ```
-time ./main 
+time <target>
 ```
 
-This will report native speeds. We are interested in the total.
+This will report native speeds. We are interested in the total. `<target>` can be `./microbenchmarks/build/getcwd`, `./microbenchmarks/build/read`, and `./microbenchmarks/build/sched_yield` when we run microbenchmarks. Also, `<target>` can be `main` test program in the main monmod repository.
 
 ### To run one variant locally
 
@@ -138,7 +138,7 @@ for benchmarking, we use the `wrk` tool which opens some connections and
 repeatedly sends HTTP requests, as follows:
    
 ```
-./wkr/wrk -c10 -t1 -d10s http://<IP where you started server>:3000/index.html
+./wrk/wrk -c10 -t1 -d10s http://<IP where you started server>:3000/index.html
 ```
 
 The `-c` flag determines the number of connections for the benchmark, `-t` the
