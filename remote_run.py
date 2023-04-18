@@ -11,29 +11,71 @@ from collections import OrderedDict
 
 # Variant Configuration File
 variant_0_addr = "eiger.ics.uci.edu"
+variant_0_arch = "aarch64"
 variant_1_addr = "blackforest.ics.uci.edu"
+variant_1_arch = "x86_64"
 client_addr = "dreamer.ics.uci.edu"
 
 # List all values you want to test in a list for each key. All combinations
 # will be benchmarked.
 
-experiment = OrderedDict({
+lighttpd = OrderedDict({
+	"target" :               ["lighttpd"],
 	"leader_id" :            [0],
 	"fault_prob" :           [0],
-	"variant_0_breakpoint" : [True],
-	"variant_1_breakpoint" : [True],
-	"policy" :               ["socket_rw_oc", "full"],
+	"breakpoint" :           ["fdevent_linux_sysepoll_init", "connection_close"],
+	"breakpoint_interval":   [10],
+	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
 	"batch_size" :           [8192],
-	"restore_prob" :         [0, 0.001, 0.005, 0.01, 0.05],
+	"restore_prob" :         [0.001, 0.005, 0.01, 0.05],
 	"usleep" :               [0],
-	"target" :               ["nginx"], #, "lighttpd"],
 })
 
-experiments = [experiment]
+nginx = OrderedDict({
+	"target" :               ["nginx"],
+	"leader_id" :            [0],
+	"fault_prob" :           [0],
+	"breakpoint" :           ["ngx_epoll_init", "ngx_close_connection"],
+	"breakpoint_interval":   [10],
+	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
+	"batch_size" :           [8192],
+	"restore_prob" :         [0.001, 0.005, 0.01, 0.05],
+	"usleep" :               [0],
+})
+
+experiments = [lighttpd, nginx]
 
 target_cmds = {
 	"lighttpd" : "~/monmod-benchmarks/lighttpd/install/sbin/lighttpd -D -f ~/monmod-benchmarks/lighttpd/config/static_4KB.conf",
 	"nginx" : "~/monmod-benchmarks/nginx/install/sbin/nginx -p ~/monmod-benchmarks/nginx/ -c config/nginx.conf"
+}
+
+other_template_keys = {
+	"variant_0_breakpoint" : "breakpoint", 
+	"variant_1_breakpoint" : "breakpoint"
+}
+
+breakpoints = {
+	"lighttpd" : {
+		"connection_accept":            { "aarch64" : ('0x40de50', 4),
+		                                  "x86_64"  : ('0x40e0e0', 1)},
+		"connection_close":             { "aarch64" : ('0x40d108', 4),
+		                                  "x86_64"  : ('0x40d200', 2)},
+		"fdevent_linux_sysepoll_poll":  { "aarch64" : ('0x42a6e8', 4),
+		                                  "x86_64"  : ('0x42ac40', 2)},
+		"fdevent_linux_sysepoll_init":  { "aarch64" : ('0x42a8f0', 4),
+		                                  "x86_64"  : ('0x42ae00', 1)}
+	},
+	"nginx" : {
+		"ngx_event_accept":             { "aarch64" : ('0x42f8d8', 4),
+		                                   "x86_64" : ('0x42dff7', 2)},
+		"ngx_close_connection":         { "aarch64" : ('0x41f6b0', 4),
+		                                  "x86_64"  : ('0x41da6d', 2)},
+		"ngx_epoll_process_events":     { "aarch64" : ('0x43a054', 4),
+		                                  "x86_64"  : ('0x4380e5', 2)},
+		"ngx_epoll_init":               { "aarch64" : ('0x439b28', 4),
+		                                  "x86_64"  : ('0x437b5d', 2)},
+	}
 }
 
 repetitions = 5
@@ -174,6 +216,9 @@ def create_config(conf):
 	for k, v in conf.items():
 		v = get_config_value(conf, k, v)
 		conf_str = conf_str.replace('%'+k+'%', str(v))
+	for tk, k in other_template_keys.items():
+		v = get_config_value(conf, tk, conf[k])
+		conf_str = conf_str.replace('%'+tk+'%', str(v))
 	tmp_conf_local = os.path.join(temp_config_dir, temp_config_name)
 	with open(tmp_conf_local, "w") as f:
 		f.write(conf_str)
@@ -185,6 +230,12 @@ def get_config_value(conf, k, v):
 	
 	if v == False:
 		return ''
+	
+	arch = ""
+	if k == "variant_0_breakpoint":
+		arch = variant_0_arch
+	else:
+		arch = variant_1_arch
 	
 	template = ('{{ interval = {interval};\n'
 	            '  pc = {pc};\n'
@@ -199,31 +250,8 @@ def get_config_value(conf, k, v):
 	assert variant_0_addr == "eiger.ics.uci.edu"
 	assert variant_1_addr == "blackforest.ics.uci.edu"
 
-	if k == "variant_0_breakpoint":
-		instr_len = 4
-		if target == 'read': # read() in microbenchmarks/read:
-			pc = '0x400664'
-		elif target == 'lighttpd': # connection_accept() in lighttpd:
-			pc = '0x40de50'
-		elif target == 'nginx': # ngx_event_accept() in nginx:
-			pc = '0x42f8d8'
-		else:
-			raise KeyError("target = {}".format(target))
-	elif k == "variant_1_breakpoint":
-		if target == 'read': # read() in microbenchmarks/read:
-			pc = '0x4005b2'
-			instr_len = 5
-		elif target == 'lighttpd': # connection_accept() in lighttpd:
-			pc = '0x40e0e0'
-			instr_len = 1
-		elif target == 'nginx': # ngx_event_accept() in nginx:
-			pc = '0x42dff7'
-			instr_len = 2
-		else:
-			raise KeyError("target = {}".format(target))
-	else:
-		raise RuntimeError()
-	
+	pc, instr_len = breakpoints[target][v][arch]
+
 	return template.format(interval=interval, pc=pc, instr_len=instr_len)
 
 
