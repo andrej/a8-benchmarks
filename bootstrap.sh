@@ -5,6 +5,7 @@ microbenchmark_root=$root/microbenchmarks
 wrk_root=$root/wrk
 nginx_root=$root/nginx
 lighttpd_root=$root/lighttpd
+redis_root=$root/redis
 
 error_out () {
 	printf "An error occured, see output above.\n"
@@ -60,6 +61,20 @@ then
 	./configure --prefix "$lighttpd_root/install" --without-zlib --without-bzip2 --without-pcre &&
 	make &&
 	make install ||
+	error_out
+	cd "$root"
+fi
+
+if [ ! -d "$redis_root/install" ]
+then
+	mkdir "$redis_root" &&
+	cd "$redis_root" &&
+	wget https://github.com/redis/redis/archive/7.0.11.tar.gz &&
+	tar -xzf 7.0.11.tar.gz &&
+	cd redis-7.0.11 &&
+	make &&
+	mkdir "$redis_root/install" &&
+	PREFIX="$redis_root/install" make install ||
 	error_out
 	cd "$root"
 fi
