@@ -67,11 +67,11 @@ fi
 
 if [ ! -d "$redis_root/install" ]
 then
-	mkdir "$redis_root" &&
 	cd "$redis_root" &&
-	wget https://github.com/redis/redis/archive/7.0.11.tar.gz &&
-	tar -xzf 7.0.11.tar.gz &&
-	cd redis-7.0.11 &&
+	wget https://download.redis.io/releases/redis-6.2.12.tar.gz &&
+	tar -xzf redis-6.2.12.tar.gz &&
+	cd redis-6.2.12 &&
+	patch -p1 -i ../remove_bio.patch &&
 	make &&
 	mkdir "$redis_root/install" &&
 	PREFIX="$redis_root/install" make install ||
