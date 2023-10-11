@@ -165,3 +165,18 @@ points to our 4KB static HTML page for its document root):
 ```
 
 Then, as with lighttpd, we benchmark using `wrk`.
+
+### Running redis
+
+The command to start redis will look like:
+
+```
+./redis/install/bin/redis-server ./redis/config/redis.conf
+```
+
+Note the configuration file disables multi-threading to make it work in our
+case. We benchmark using `redis-benchmark`:
+
+```
+./redis/install/bin/redis-benchmark -q -n 100000 -h <host> -p <port>
+```
