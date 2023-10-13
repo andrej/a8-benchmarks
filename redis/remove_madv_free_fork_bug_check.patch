@@ -1,0 +1,21 @@
+diff -ur redis-6.2.12/src/server.c redis-6.2.12-patched/src/server.c
+--- redis-6.2.12-patched/src/server.c	2023-04-17 05:54:26.000000000 -0700
++++ redis-6.2.12-patched/src/server.c	2023-10-12 15:07:50.069271946 -0700
+@@ -6412,6 +6412,9 @@
+     #ifdef __linux__
+         linuxMemoryWarnings();
+     #if defined (__arm64__)
++        /* The following check is performed only on ARM64, hence leading to a
++           divergence. On our system, we do not have the bug, so we will skip
++           this system-specific check to avoid the divergence: 
+         int ret;
+         if ((ret = linuxMadvFreeForkBugCheck())) {
+             if (ret == 1)
+@@ -6426,6 +6429,7 @@
+                 exit(1);
+             }
+         }
++        */
+     #endif /* __arm64__ */
+     #endif /* __linux__ */
+         moduleInitModulesSystemLast();

@@ -72,7 +72,9 @@ then
 	cd redis-6.2.12 &&
 	patch -p1 -i ../remove_bio.patch &&
 	patch -p1 -i ../benchmark_allow_errors.patch &&
-	make &&
+	patch -p1 -i ../remove_madv_free_fork_bug_check.patch &&
+	USE_JEMALLOC=no make distclean &&
+	USE_JEMALLOC=no make &&
 	mkdir "$redis_root/install" &&
 	PREFIX="$redis_root/install" make install ||
 	error_out
