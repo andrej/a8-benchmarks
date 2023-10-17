@@ -1,6 +1,304 @@
-diff -ur redis-6.2.12/src/redis-benchmark.c redis-6.2.12-patched/src/redis-benchmark.c
---- redis-6.2.12/src/redis-benchmark.c	2023-04-17 05:54:26.000000000 -0700
-+++ redis-6.2.12-patched/src/redis-benchmark.c	2023-10-11 13:05:23.254248696 -0700
+diff -ur redis-6.2.12-orig/src/bio.c redis-6.2.12/src/bio.c
+--- redis-6.2.12-orig/src/bio.c	2023-04-17 05:54:26.000000000 -0700
++++ redis-6.2.12/src/bio.c	2023-10-07 15:22:20.208223956 -0700
+@@ -57,34 +57,15 @@
+  * POSSIBILITY OF SUCH DAMAGE.
+  */
+ 
+-
+ #include "server.h"
+ #include "bio.h"
+ 
+-static pthread_t bio_threads[BIO_NUM_OPS];
+-static pthread_mutex_t bio_mutex[BIO_NUM_OPS];
+-static pthread_cond_t bio_newjob_cond[BIO_NUM_OPS];
+-static pthread_cond_t bio_step_cond[BIO_NUM_OPS];
+-static list *bio_jobs[BIO_NUM_OPS];
+ /* The following array is used to hold the number of pending jobs for every
+  * OP type. This allows us to export the bioPendingJobsOfType() API that is
+  * useful when the main thread wants to perform some operation that may involve
+  * objects shared with the background thread. The main thread will just wait
+  * that there are no longer jobs of this type to be executed before performing
+  * the sensible operation. This data is also useful for reporting. */
+-static unsigned long long bio_pending[BIO_NUM_OPS];
+-
+-/* This structure represents a background Job. It is only used locally to this
+- * file as the API does not expose the internals at all. */
+-struct bio_job {
+-    time_t time; /* Time at which the job was created. */
+-    /* Job specific arguments.*/
+-    int fd; /* Fd for file based background jobs */
+-    lazy_free_fn *free_fn; /* Function that will free the provided arguments */
+-    void *free_args[]; /* List of arguments to be passed to the free function */
+-};
+-
+-void *bioProcessBackgroundJobs(void *arg);
+ 
+ /* Make sure we have enough stack to perform all the things we do in the
+  * main thread. */
+@@ -92,176 +73,47 @@
+ 
+ /* Initialize the background system, spawning the thread. */
+ void bioInit(void) {
+-    pthread_attr_t attr;
+-    pthread_t thread;
+-    size_t stacksize;
+-    int j;
+-
+-    /* Initialization of state vars and objects */
+-    for (j = 0; j < BIO_NUM_OPS; j++) {
+-        pthread_mutex_init(&bio_mutex[j],NULL);
+-        pthread_cond_init(&bio_newjob_cond[j],NULL);
+-        pthread_cond_init(&bio_step_cond[j],NULL);
+-        bio_jobs[j] = listCreate();
+-        bio_pending[j] = 0;
+-    }
+-
+-    /* Set the stack size as by default it may be small in some system */
+-    pthread_attr_init(&attr);
+-    pthread_attr_getstacksize(&attr,&stacksize);
+-    if (!stacksize) stacksize = 1; /* The world is full of Solaris Fixes */
+-    while (stacksize < REDIS_THREAD_STACK_SIZE) stacksize *= 2;
+-    pthread_attr_setstacksize(&attr, stacksize);
+-
+-    /* Ready to spawn our threads. We use the single argument the thread
+-     * function accepts in order to pass the job ID the thread is
+-     * responsible of. */
+-    for (j = 0; j < BIO_NUM_OPS; j++) {
+-        void *arg = (void*)(unsigned long) j;
+-        if (pthread_create(&thread,&attr,bioProcessBackgroundJobs,arg) != 0) {
+-            serverLog(LL_WARNING,"Fatal: Can't initialize Background Jobs.");
+-            exit(1);
+-        }
+-        bio_threads[j] = thread;
+-    }
+-}
+-
+-void bioSubmitJob(int type, struct bio_job *job) {
+-    job->time = time(NULL);
+-    pthread_mutex_lock(&bio_mutex[type]);
+-    listAddNodeTail(bio_jobs[type],job);
+-    bio_pending[type]++;
+-    pthread_cond_signal(&bio_newjob_cond[type]);
+-    pthread_mutex_unlock(&bio_mutex[type]);
+ }
+ 
+ void bioCreateLazyFreeJob(lazy_free_fn free_fn, int arg_count, ...) {
+     va_list valist;
+     /* Allocate memory for the job structure and all required
+      * arguments */
+-    struct bio_job *job = zmalloc(sizeof(*job) + sizeof(void *) * (arg_count));
+-    job->free_fn = free_fn;
++    void **free_args = zmalloc(sizeof(void *) * (arg_count));
+ 
+     va_start(valist, arg_count);
+     for (int i = 0; i < arg_count; i++) {
+-        job->free_args[i] = va_arg(valist, void *);
++        free_args[i] = va_arg(valist, void *);
+     }
+     va_end(valist);
+-    bioSubmitJob(BIO_LAZY_FREE, job);
++    free_fn(free_args);
++    zfree(free_args);
+ }
+ 
+ void bioCreateCloseJob(int fd) {
+-    struct bio_job *job = zmalloc(sizeof(*job));
+-    job->fd = fd;
+-
+-    bioSubmitJob(BIO_CLOSE_FILE, job);
++    close(fd);
+ }
+ 
+ void bioCreateFsyncJob(int fd) {
+-    struct bio_job *job = zmalloc(sizeof(*job));
+-    job->fd = fd;
+-
+-    bioSubmitJob(BIO_AOF_FSYNC, job);
+-}
+-
+-void *bioProcessBackgroundJobs(void *arg) {
+-    struct bio_job *job;
+-    unsigned long type = (unsigned long) arg;
+-    sigset_t sigset;
+-
+-    /* Check that the type is within the right interval. */
+-    if (type >= BIO_NUM_OPS) {
+-        serverLog(LL_WARNING,
+-            "Warning: bio thread started with wrong type %lu",type);
+-        return NULL;
+-    }
+-
+-    switch (type) {
+-    case BIO_CLOSE_FILE:
+-        redis_set_thread_title("bio_close_file");
+-        break;
+-    case BIO_AOF_FSYNC:
+-        redis_set_thread_title("bio_aof_fsync");
+-        break;
+-    case BIO_LAZY_FREE:
+-        redis_set_thread_title("bio_lazy_free");
+-        break;
+-    }
+-
+-    redisSetCpuAffinity(server.bio_cpulist);
+-
+-    makeThreadKillable();
+-
+-    pthread_mutex_lock(&bio_mutex[type]);
+-    /* Block SIGALRM so we are sure that only the main thread will
+-     * receive the watchdog signal. */
+-    sigemptyset(&sigset);
+-    sigaddset(&sigset, SIGALRM);
+-    if (pthread_sigmask(SIG_BLOCK, &sigset, NULL))
+-        serverLog(LL_WARNING,
+-            "Warning: can't mask SIGALRM in bio.c thread: %s", strerror(errno));
+-
+-    while(1) {
+-        listNode *ln;
+-
+-        /* The loop always starts with the lock hold. */
+-        if (listLength(bio_jobs[type]) == 0) {
+-            pthread_cond_wait(&bio_newjob_cond[type],&bio_mutex[type]);
+-            continue;
+-        }
+-        /* Pop the job from the queue. */
+-        ln = listFirst(bio_jobs[type]);
+-        job = ln->value;
+-        /* It is now possible to unlock the background system as we know have
+-         * a stand alone job structure to process.*/
+-        pthread_mutex_unlock(&bio_mutex[type]);
+-
+-        /* Process the job accordingly to its type. */
+-        if (type == BIO_CLOSE_FILE) {
+-            close(job->fd);
+-        } else if (type == BIO_AOF_FSYNC) {
+-            /* The fd may be closed by main thread and reused for another
+-             * socket, pipe, or file. We just ignore these errno because
+-             * aof fsync did not really fail. */
+-            if (redis_fsync(job->fd) == -1 &&
+-                errno != EBADF && errno != EINVAL)
+-            {
+-                int last_status;
+-                atomicGet(server.aof_bio_fsync_status,last_status);
+-                atomicSet(server.aof_bio_fsync_status,C_ERR);
+-                atomicSet(server.aof_bio_fsync_errno,errno);
+-                if (last_status == C_OK) {
+-                    serverLog(LL_WARNING,
+-                        "Fail to fsync the AOF file: %s",strerror(errno));
+-                }
+-            } else {
+-                atomicSet(server.aof_bio_fsync_status,C_OK);
+-            }
+-        } else if (type == BIO_LAZY_FREE) {
+-            job->free_fn(job->free_args);
+-        } else {
+-            serverPanic("Wrong job type in bioProcessBackgroundJobs().");
++    if (redis_fsync(fd) == -1 &&
++        errno != EBADF && errno != EINVAL)
++    {
++        int last_status;
++        atomicGet(server.aof_bio_fsync_status,last_status);
++        atomicSet(server.aof_bio_fsync_status,C_ERR);
++        atomicSet(server.aof_bio_fsync_errno,errno);
++        if (last_status == C_OK) {
++            serverLog(LL_WARNING,
++                "Fail to fsync the AOF file: %s",strerror(errno));
+         }
+-        zfree(job);
+-
+-        /* Lock again before reiterating the loop, if there are no longer
+-         * jobs to process we'll block again in pthread_cond_wait(). */
+-        pthread_mutex_lock(&bio_mutex[type]);
+-        listDelNode(bio_jobs[type],ln);
+-        bio_pending[type]--;
+-
+-        /* Unblock threads blocked on bioWaitStepOfType() if any. */
+-        pthread_cond_broadcast(&bio_step_cond[type]);
++    } else {
++        atomicSet(server.aof_bio_fsync_status,C_OK);
+     }
+ }
+ 
+ /* Return the number of pending jobs of the specified type. */
+ unsigned long long bioPendingJobsOfType(int type) {
+-    unsigned long long val;
+-    pthread_mutex_lock(&bio_mutex[type]);
+-    val = bio_pending[type];
+-    pthread_mutex_unlock(&bio_mutex[type]);
+-    return val;
++    return type*0; /* suppress unused parameter error */
+ }
+ 
+ /* If there are pending jobs for the specified type, the function blocks
+@@ -275,15 +127,7 @@
+  * a bio.c thread to do more work in a blocking way.
+  */
+ unsigned long long bioWaitStepOfType(int type) {
+-    unsigned long long val;
+-    pthread_mutex_lock(&bio_mutex[type]);
+-    val = bio_pending[type];
+-    if (val != 0) {
+-        pthread_cond_wait(&bio_step_cond[type],&bio_mutex[type]);
+-        val = bio_pending[type];
+-    }
+-    pthread_mutex_unlock(&bio_mutex[type]);
+-    return val;
++    return type*0; /* suppress unused parameter error */
+ }
+ 
+ /* Kill the running bio threads in an unclean way. This function should be
+@@ -291,19 +135,4 @@
+  * Currently Redis does this only on crash (for instance on SIGSEGV) in order
+  * to perform a fast memory check without other threads messing with memory. */
+ void bioKillThreads(void) {
+-    int err, j;
+-
+-    for (j = 0; j < BIO_NUM_OPS; j++) {
+-        if (bio_threads[j] == pthread_self()) continue;
+-        if (bio_threads[j] && pthread_cancel(bio_threads[j]) == 0) {
+-            if ((err = pthread_join(bio_threads[j],NULL)) != 0) {
+-                serverLog(LL_WARNING,
+-                    "Bio thread for job type #%d can not be joined: %s",
+-                        j, strerror(err));
+-            } else {
+-                serverLog(LL_WARNING,
+-                    "Bio thread for job type #%d terminated",j);
+-            }
+-        }
+-    }
+ }
+diff -ur redis-6.2.12-orig/src/bio.h redis-6.2.12/src/bio.h
+--- redis-6.2.12-orig/src/bio.h	2023-04-17 05:54:26.000000000 -0700
++++ redis-6.2.12/src/bio.h	2023-10-07 15:22:20.208223956 -0700
+@@ -46,6 +46,6 @@
+ #define BIO_CLOSE_FILE    0 /* Deferred close(2) syscall. */
+ #define BIO_AOF_FSYNC     1 /* Deferred AOF fsync. */
+ #define BIO_LAZY_FREE     2 /* Deferred objects freeing. */
+-#define BIO_NUM_OPS       3
++#define BIO_NUM_OPS       0
+ 
+ #endif
+diff -ur redis-6.2.12-orig/src/mkreleasehdr.sh redis-6.2.12/src/mkreleasehdr.sh
+--- redis-6.2.12-orig/src/mkreleasehdr.sh	2023-04-17 05:54:26.000000000 -0700
++++ redis-6.2.12/src/mkreleasehdr.sh	2023-10-16 16:53:44.049322269 -0700
+@@ -1,10 +1,7 @@
+ #!/bin/sh
+-GIT_SHA1=`(git show-ref --head --hash=8 2> /dev/null || echo 00000000) | head -n1`
+-GIT_DIRTY=`git diff --no-ext-diff 2> /dev/null | wc -l`
+-BUILD_ID=`uname -n`"-"`date +%s`
+-if [ -n "$SOURCE_DATE_EPOCH" ]; then
+-  BUILD_ID=$(date -u -d "@$SOURCE_DATE_EPOCH" +%s 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" +%s 2>/dev/null || date -u +%s)
+-fi
++GIT_SHA1=00000000
++GIT_DIRTY=1
++BUILD_ID=monmod-benchmark
+ test -f release.h || touch release.h
+ (cat release.h | grep SHA1 | grep $GIT_SHA1) && \
+ (cat release.h | grep DIRTY | grep $GIT_DIRTY) && exit 0 # Already up-to-date
+diff -ur redis-6.2.12-orig/src/redis-benchmark.c redis-6.2.12/src/redis-benchmark.c
+--- redis-6.2.12-orig/src/redis-benchmark.c	2023-04-17 05:54:26.000000000 -0700
++++ redis-6.2.12/src/redis-benchmark.c	2023-10-13 14:25:57.450329448 -0700
 @@ -91,6 +91,7 @@
      redisAtomic int requests_issued;
      redisAtomic int requests_finished;
@@ -57,20 +355,9 @@ diff -ur redis-6.2.12/src/redis-benchmark.c redis-6.2.12-patched/src/redis-bench
 -    } else {
 -        while(c->pending) {
 -            if (redisGetReply(c->context,&reply) != REDIS_OK) {
-+        if (!config.quiet) {
-+            fprintf(stderr, "Error: %s\n",c->context->errstr);
-+        }
-+        handleReadFailure(c);
-+        return;
-+    }
-+
-+    while(c->pending) {
-+
-+        if (redisGetReply(c->context,&reply) != REDIS_OK) {
-+            if (!config.quiet) {
-                 fprintf(stderr,"Error: %s\n",c->context->errstr);
+-                fprintf(stderr,"Error: %s\n",c->context->errstr);
 -                exit(1);
-             }
+-            }
 -            if (reply != NULL) {
 -                if (reply == (void*)REDIS_REPLY_ERROR) {
 -                    fprintf(stderr,"Unexpected error reply, exiting...\n");
@@ -104,13 +391,26 @@ diff -ur redis-6.2.12/src/redis-benchmark.c redis-6.2.12-patched/src/redis-bench
 -                    } else {
 -                        if (c->cluster_node) {
 -                            printf("Error from server %s:%d: %s\n",
++        if (!config.quiet) {
++            fprintf(stderr, "Error: %s\r",c->context->errstr);
++        }
++        handleReadFailure(c);
++        return;
++    }
++
++    while(c->pending) {
++
++        if (redisGetReply(c->context,&reply) != REDIS_OK) {
++            if (!config.quiet) {
++                fprintf(stderr,"Error: %s\r",c->context->errstr);
++            }
 +            handleReadFailure(c);
 +            return;
 +        }
 +
 +        if (reply != NULL) {
 +            if (reply == (void*)REDIS_REPLY_ERROR) {
-+                fprintf(stderr,"Unexpected error reply, exiting...\n");
++                fprintf(stderr,"Unexpected error reply, exiting...\r");
 +                handleReadFailure(c);
 +                return;
 +            }
@@ -143,11 +443,11 @@ diff -ur redis-6.2.12/src/redis-benchmark.c redis-6.2.12-patched/src/redis-bench
 +                        exit(1);
 +                } else {
 +                    if (c->cluster_node) {
-+                        printf("Error from server %s:%d: %s\n",
++                        printf("Error from server %s:%d: %s\r",
 +                            c->cluster_node->ip,
 +                            c->cluster_node->port,
 +                            r->str);
-+                    } else printf("Error from server: %s\n", r->str);
++                    } else printf("Error from server: %s\r", r->str);
 +                    handleReadFailure(c);
 +                    return;
                  }
@@ -245,18 +545,25 @@ diff -ur redis-6.2.12/src/redis-benchmark.c redis-6.2.12-patched/src/redis-bench
          }
      }
  }
-@@ -617,8 +635,10 @@
+@@ -616,11 +634,13 @@
+     /* Initialize request when nothing was written. */
      if (c->written == 0) {
          /* Enforce upper bound to number of requests. */
-         int requests_issued = 0;
-+        int requests_failed = 0;
-         atomicGetIncr(config.requests_issued, requests_issued, config.pipeline);
+-        int requests_issued = 0;
+-        atomicGetIncr(config.requests_issued, requests_issued, config.pipeline);
 -        if (requests_issued >= config.requests) {
-+        atomicGet(config.requests_failed, requests_failed);
-+        if (requests_issued - requests_failed >= config.requests) {
-             return;
-         }
+-            return;
+-        }
++        //int requests_issued = 0;
++        //int requests_failed = 0;
++        //atomicGetIncr(config.requests_issued, requests_issued, config.pipeline);
++        //atomicGet(config.requests_failed, requests_failed);
++        //if (requests_issued - requests_failed >= config.requests) {
++        //    return;
++        //}
  
+         /* Really initialize: randomize keys and set start time. */
+         if (config.randomkeys) randomizeClientKey(c);
 @@ -630,7 +650,7 @@
          c->latency = -1;
      }
@@ -341,7 +648,15 @@ diff -ur redis-6.2.12/src/redis-benchmark.c redis-6.2.12-patched/src/redis-bench
      }
  }
  
-@@ -1541,6 +1574,10 @@
+@@ -991,6 +1024,7 @@
+     config.title = title;
+     config.requests_issued = 0;
+     config.requests_finished = 0;
++    config.requests_failed = 0;
+     config.previous_requests_finished = 0;
+     config.last_printed_bytes = 0;
+     hdr_init(
+@@ -1541,6 +1575,10 @@
              config.sslconfig.ciphersuites = strdup(argv[++i]);
          #endif
          #endif
@@ -352,3 +667,39 @@ diff -ur redis-6.2.12/src/redis-benchmark.c redis-6.2.12-patched/src/redis-bench
          } else {
              /* Assume the user meant to provide an option when the arg starts
               * with a dash. We're done otherwise and should use the remainder
+@@ -1659,7 +1697,13 @@
+     const float instantaneous_rps = (float)(requests_finished-previous_requests_finished)/instantaneous_dt;
+     config.previous_tick = current_tick;
+     atomicSet(config.previous_requests_finished,requests_finished);
+-    int printed_bytes = printf("%s: rps=%.1f (overall: %.1f) avg_msec=%.3f (overall: %.3f)\r", config.title, instantaneous_rps, rps, hdr_mean(config.current_sec_latency_histogram)/1000.0f, hdr_mean(config.latency_histogram)/1000.0f);
++    int printed_bytes = 
++        printf("%s: rps=%.1f (overall: %.1f) avg_msec=%.3f (overall: %.3f) "
++               "clients=%d\r", 
++               config.title, instantaneous_rps, rps, 
++               hdr_mean(config.current_sec_latency_histogram)/1000.0f, 
++               hdr_mean(config.latency_histogram)/1000.0f,
++               liveclients);
+     if (printed_bytes > config.last_printed_bytes){
+        config.last_printed_bytes = printed_bytes;
+     }
+diff -ur redis-6.2.12-orig/src/server.c redis-6.2.12/src/server.c
+--- redis-6.2.12-orig/src/server.c	2023-04-17 05:54:26.000000000 -0700
++++ redis-6.2.12/src/server.c	2023-10-12 15:07:50.069271946 -0700
+@@ -6412,6 +6412,9 @@
+     #ifdef __linux__
+         linuxMemoryWarnings();
+     #if defined (__arm64__)
++        /* The following check is performed only on ARM64, hence leading to a
++           divergence. On our system, we do not have the bug, so we will skip
++           this system-specific check to avoid the divergence: 
+         int ret;
+         if ((ret = linuxMadvFreeForkBugCheck())) {
+             if (ret == 1)
+@@ -6426,6 +6429,7 @@
+                 exit(1);
+             }
+         }
++        */
+     #endif /* __arm64__ */
+     #endif /* __linux__ */
+         moduleInitModulesSystemLast();

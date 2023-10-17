@@ -70,9 +70,7 @@ then
 	wget https://download.redis.io/releases/redis-6.2.12.tar.gz &&
 	tar -xzf redis-6.2.12.tar.gz &&
 	cd redis-6.2.12 &&
-	patch -p1 -i ../remove_bio.patch &&
-	patch -p1 -i ../benchmark_allow_errors.patch &&
-	patch -p1 -i ../remove_madv_free_fork_bug_check.patch &&
+	patch -p1 -i ../patches.patch &&
 	USE_JEMALLOC=no make distclean &&
 	USE_JEMALLOC=no make &&
 	mkdir "$redis_root/install" &&
