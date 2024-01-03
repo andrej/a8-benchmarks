@@ -16,6 +16,19 @@ monmod. See [main monmod repository](https://github.com/andrej/monmod).
 4. Follow below instructions to run the benchmarks / test cases. The 
    following general instructions apply to all:
 
+## Reducing Noise
+
+To disable frequency scaling on the x86 machines:
+```
+sudo cpupower frequency-set -g performance
+```
+
+To isolate the benchmarked processes on dedicated cores so there is no resource
+contention (makes a big difference on ARM):
+```
+sudo cset shield --cpu 10-12; sudo cset shield --shield --pid $(pidof -s lighttpd),$(pidof -s vma-server)
+```
+
 ## General instructions
 
 ### To run benchmarks natively
@@ -165,3 +178,18 @@ points to our 4KB static HTML page for its document root):
 ```
 
 Then, as with lighttpd, we benchmark using `wrk`.
+
+### Running redis
+
+The command to start redis will look like:
+
+```
+./redis/install/bin/redis-server ./redis/config/redis.conf
+```
+
+Note the configuration file disables multi-threading to make it work in our
+case. We benchmark using `redis-benchmark`:
+
+```
+./redis/install/bin/redis-benchmark -q -n 100000 -h <host> -p <port>
+```

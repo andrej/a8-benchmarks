@@ -53,12 +53,11 @@ if [ ! -d "$lighttpd_root/install" ]
 then
 	cd "$lighttpd_root" &&
 	rpl -R "%%MONMOD_BENCHMARKS_ROOT%%" "$root" config/ &&
-	git clone https://github.com/balexios/lighttpd1.4.git &&
-	mkdir "install" &&
-	cd "lighttpd1.4" &&
-	git reset --hard c4943a01f2e &&
+	wget https://download.lighttpd.net/lighttpd/releases-1.4.x/lighttpd-1.4.71.tar.gz &&
+	tar -xvzf lighttpd-1.4.71.tar.gz &&
+	cd "lighttpd-1.4.71" &&
 	./autogen.sh &&
-	./configure --prefix "$lighttpd_root/install" --without-zlib --without-bzip2 --without-pcre &&
+	./configure --prefix "$lighttpd_root/install" --without-zlib --without-bzip2 --without-pcre --without-pcre2 &&
 	make &&
 	make install ||
 	error_out
@@ -71,8 +70,9 @@ then
 	wget https://download.redis.io/releases/redis-6.2.12.tar.gz &&
 	tar -xzf redis-6.2.12.tar.gz &&
 	cd redis-6.2.12 &&
-	patch -p1 -i ../remove_bio.patch &&
-	make &&
+	patch -p1 -i ../patches.patch &&
+	USE_JEMALLOC=no make distclean &&
+	USE_JEMALLOC=no make &&
 	mkdir "$redis_root/install" &&
 	PREFIX="$redis_root/install" make install ||
 	error_out
