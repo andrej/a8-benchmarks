@@ -19,36 +19,71 @@ client_addr = "dreamer.ics.uci.edu"
 # List all values you want to test in a list for each key. All combinations
 # will be benchmarked.
 
+target_cmds = {
+	"lighttpd" : "~/monmod/benchmarks/lighttpd/install/sbin/lighttpd -D "
+	             "-f ~/monmod/benchmarks/lighttpd/config/static_4KB.conf",
+	"nginx"    : "~/monmod/benchmarks/nginx/install/sbin/nginx "
+	             "-p ~/monmod/benchmarks/nginx/ -c config/nginx.conf",
+	"redis"    : "~/monmod/benchmarks/redis/install/bin/redis-server "
+	             "~/monmod/benchmarks/redis/config/redis.conf"
+}
+
+client_cmds = {
+	"lighttpd" : "~/monmod-benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
+	             "http://128.195.4.134:3000",
+	"nginx"    : "~/monmod-benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
+	             "http://128.195.4.134:3000",
+	"redis"    : "~/monmod-benchmarks/redis/install/bin/redis-benchmark -q "
+	             "-n 100000 -h 128.195.4.134 -p 6379 -c 10 -t PING_INLINE"
+}
+
+client_kill_cmd = ("killall -9 wrk redis-benchmark", True, True)
+
+results_regexes = {
+	"lighttpd": r"Requests/sec:\s*(\d+\.\d+)",
+	"nginx":    r"Requests/sec:\s*(\d+\.\d+)",
+	"redis":    r"PING_INLINE:\s*(\d+\.\d+)",
+}
+
 lighttpd = OrderedDict({
 	"target" :               ["lighttpd"],
 	"leader_id" :            [0],
 	"fault_prob" :           [0],
-	"breakpoint" :           ["fdevent_linux_sysepoll_init", "connection_close"],
-	"breakpoint_interval":   [10],
+	"breakpoint" :           ["connection_close"],
+	"breakpoint_interval":   [1],
 	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
 	"batch_size" :           [8192],
-	"restore_prob" :         [0.001, 0.005, 0.01, 0.05],
-	"usleep" :               [0],
+	"restore_prob" :         [0, 0.001, 0.005, 0.01, 0.05],
 })
 
 nginx = OrderedDict({
 	"target" :               ["nginx"],
 	"leader_id" :            [0],
 	"fault_prob" :           [0],
-	"breakpoint" :           ["ngx_epoll_init", "ngx_close_connection"],
-	"breakpoint_interval":   [10],
+	"breakpoint" :           ["ngx_close_connection"],
+	"breakpoint_interval":   [1],
 	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
 	"batch_size" :           [8192],
-	"restore_prob" :         [0.001, 0.005, 0.01, 0.05],
-	"usleep" :               [0],
+	"restore_prob" :         [0, 0.001, 0.005, 0.01, 0.05],
 })
 
-experiments = [lighttpd, nginx]
+redis = OrderedDict({
+	"target" :               ["redis"],
+	"leader_id" :            [0],
+	"fault_prob" :           [0],
+	"breakpoint" :           ["acceptTcpHandler"],
+	"breakpoint_interval" :  [1],
+	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
+	"batch_size" :           [8192],
+	"restore_prob" :         [0, 0.001, 0.005, 0.01, 0.05]
+})
 
-target_cmds = {
-	"lighttpd" : "~/monmod-benchmarks/lighttpd/install/sbin/lighttpd -D -f ~/monmod-benchmarks/lighttpd/config/static_4KB.conf",
-	"nginx" : "~/monmod-benchmarks/nginx/install/sbin/nginx -p ~/monmod-benchmarks/nginx/ -c config/nginx.conf"
-}
+experiments = [
+	#redis, 
+	lighttpd, 
+	nginx
+]
+
 
 other_template_keys = {
 	"variant_0_breakpoint" : "breakpoint", 
@@ -59,8 +94,8 @@ breakpoints = {
 	"lighttpd" : {
 		"connection_accept":            { "aarch64" : ('0x40de50', 4),
 		                                  "x86_64"  : ('0x40e0e0', 1)},
-		"connection_close":             { "aarch64" : ('0x40d108', 4),
-		                                  "x86_64"  : ('0x40d200', 2)},
+		"connection_close":             { "aarch64" : ('0x41fc3c', 4),
+		                                  "x86_64"  : ('0x41d440', 1)},
 		"fdevent_linux_sysepoll_poll":  { "aarch64" : ('0x42a6e8', 4),
 		                                  "x86_64"  : ('0x42ac40', 2)},
 		"fdevent_linux_sysepoll_init":  { "aarch64" : ('0x42a8f0', 4),
@@ -75,18 +110,31 @@ breakpoints = {
 		                                  "x86_64"  : ('0x4380e5', 2)},
 		"ngx_epoll_init":               { "aarch64" : ('0x439b28', 4),
 		                                  "x86_64"  : ('0x437b5d', 2)},
+	},
+	"redis" : {
+		"acceptTcpHandler":             { "aarch64" : ('0x4479d0', 4),
+		                                  "x86_64"  : ('0x447a80', 2)}
 	}
 }
 
 repetitions = 5
 
 # Commands / config
-prev_kill_cmd = 'killall -9 read sched_yield getcwd lighttpd nginx monmod_run.sh sudo'
+# Command, sudo, ignore_nz
+variant_setup_cmds = [
+	("~/monmod/scripts/stop_monmod.sh", True, True),
+]
+
+variant_after_start_cmds = [
+	("cset shield --cpu 10-12", True, True),
+	("cset shield --shield --pid $(pidof -s vma-server),$(pidof -s lighttpd),"
+	 "$(pidof -s nginx),$(pidof -s redis-server)", True, True),
+]
+
 kill_cmd = 'sh -c "for pid in $(pidof monmod_run.sh); do pkill -9 -g $pid; done"'
 sync_cmd = 'rsync {temp_conf_local} {user}@{addr}:~/{temp_conf_name}'
 variant_cmd = '~/monmod/scripts/monmod_run.sh {variant_id} ~/{temp_config_name} {target}'
-variant_cmd_sudo = False
-client_cmd = '~/DMon/benchmarks/wrk/wrk -d10s -t1 -c10 http://128.195.4.134:3000'
+variant_cmd_sudo = True
 
 template_path = os.path.join(os.path.dirname(__file__), "configs", "template.ini")
 temp_config_dir = os.path.join(os.path.dirname(__file__), "configs")
@@ -140,6 +188,7 @@ def one_benchmark(conf):
 	create_config(conf)
 	target = conf["target"]
 	target_cmd = target_cmds[target]
+	client_cmd = client_cmds[target]
 	try:
 		results = []
 		for _ in range(repetitions):
@@ -147,7 +196,8 @@ def one_benchmark(conf):
 			time.sleep(4)
 			variant_1 = start_variant(variant_1_addr, user, target_cmd, 1)
 			time.sleep(1)
-			result = run_client(client_addr, user)
+			# TODO add warmup round
+			result = run_client(client_addr, user, client_cmd, target)
 			stop_variant(variant_0_addr, user, variant_0)
 			stop_variant(variant_1_addr, user, variant_1)
 			results.append(result)
@@ -228,7 +278,7 @@ def get_config_value(conf, k, v):
 	if k not in {'variant_0_breakpoint', 'variant_1_breakpoint'}:
 		return v
 	
-	if v == False:
+	if not v:
 		return ''
 	
 	arch = ""
@@ -271,10 +321,10 @@ def run_safely(cmd, ignore_nz=False, sudo=False, dont_wait=False, timeout=10,
 	p = None
 	try:
 		p = subprocess.Popen(cmd.split() if not shell else cmd, 
-				     stdin=subprocess.PIPE,
-				     stdout=stdout,
-				     stderr=stderr_log,
-				     **kwargs)
+				             stdin=subprocess.PIPE,
+				             stdout=stdout,
+				             stderr=stderr_log,
+				             **kwargs)
 		if sudo or needs_pw:
 			p.stdin.write((password + "\n").encode("ascii"))
 			p.stdin.flush()
@@ -307,13 +357,23 @@ def start_variant(addr, user, target, variant_id):
 	run_safely(rsync_cmd)
 
 	# Kill any previous variants
-	run_safely(prev_kill_cmd, user=user, addr=addr, ignore_nz=True, sudo=True)
+	for variant_setup_cmd, sudo, ignore_nz in variant_setup_cmds:
+		run_safely(variant_setup_cmd, user=user, addr=addr, ignore_nz=True, 
+		           sudo=True)
 
 	# Start variant
 	cmd = (variant_cmd.format(variant_id=variant_id,
 		                  temp_config_name=temp_config_name,
 		                  target=target))
-	p = run_safely(cmd, sudo=variant_cmd_sudo, needs_pw=True, user=user, addr=addr, dont_wait=True)
+	p = run_safely(cmd, sudo=variant_cmd_sudo, needs_pw=True, user=user, 
+	               addr=addr, dont_wait=True)
+	
+	# After start commands
+	time.sleep(1)
+	for cmd, sudo, ignore_nz in variant_after_start_cmds:
+		run_safely(cmd, user=user, addr=addr, ignore_nz=ignore_nz, sudo=sudo,
+		           dont_wait=False)
+
 	return p
 
 
@@ -321,12 +381,14 @@ def stop_variant(addr, user, p):
 	run_safely(kill_cmd, addr=addr, user=user, ignore_nz=True)
 
 
-def run_client(addr, user):
-	cmd = client_cmd
-	p = run_safely(cmd, addr=addr, user=user, stdout=subprocess.PIPE,
-	               timeout=15)
+def run_client(addr, user, client_cmd, target):
+	kill_cmd, kill_sudo, kill_ignore_nz = client_kill_cmd
+	run_safely(kill_cmd, addr=addr, user=user, sudo=kill_sudo, 
+			   ignore_nz=kill_ignore_nz)
+	p = run_safely(client_cmd, addr=addr, user=user, stdout=subprocess.PIPE,
+	               timeout=20)
 	results = p.stdout.read().decode("ascii", errors="ignore")
-	match = re.search(r"Requests/sec:\s*(\d+\.\d+)", results)
+	match = re.search(results_regexes[target], results)
 	if not match:
 		raise RuntimeError(results)
 	return match.group(1)
