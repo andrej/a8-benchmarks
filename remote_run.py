@@ -34,7 +34,9 @@ client_cmds = {
 	"nginx"    : "~/monmod-benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
 	             "http://128.195.4.134:3000",
 	"redis"    : "~/monmod-benchmarks/redis/install/bin/redis-benchmark -q "
-	             "-n 100000 -h 128.195.4.134 -p 6379 -c 10 -t PING_INLINE"
+	             "-n 100000 -h 128.195.4.134 -p 6379 -c 10 -t PING_INLINE",
+	#"redis"    : "~/monmod-benchmarks/redis/install/bin/redis-benchmark -q "
+	#             "-n 1000 -h 128.195.4.134 -p 6379 -c 1 -t PING_INLINE",
 }
 
 client_kill_cmd = ("killall -9 wrk redis-benchmark", True, True)
@@ -52,8 +54,8 @@ lighttpd = OrderedDict({
 	"breakpoint" :           ["connection_close"],
 	"breakpoint_interval":   [1],
 	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
-	"batch_size" :           [8192],
-	"restore_prob" :         [0, 0.001, 0.005, 0.01, 0.05],
+	"batch_size" :           [8192], # [0, 512, 1024, 2048, 4096, 8192],
+	"restore_prob" :         [0] #, 0.001, 0.005, 0.01, 0.05],
 })
 
 nginx = OrderedDict({
@@ -63,25 +65,25 @@ nginx = OrderedDict({
 	"breakpoint" :           ["ngx_close_connection"],
 	"breakpoint_interval":   [1],
 	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
-	"batch_size" :           [8192],
-	"restore_prob" :         [0, 0.001, 0.005, 0.01, 0.05],
+	"batch_size" :           [8192], # [0, 512, 1024, 2048, 4096, 8192],
+	"restore_prob" :         [0] #, 0.001, 0.005, 0.01, 0.05],
 })
 
 redis = OrderedDict({
 	"target" :               ["redis"],
 	"leader_id" :            [0],
 	"fault_prob" :           [0],
-	"breakpoint" :           ["acceptTcpHandler"],
+	"breakpoint" :           ["aeMain"],
 	"breakpoint_interval" :  [1],
-	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
-	"batch_size" :           [8192],
-	"restore_prob" :         [0, 0.001, 0.005, 0.01, 0.05]
+	"policy" :               ["socket_rw_oc" "socket_rw", "base", "full"],
+	"batch_size" :           [8192], # [0, 512, 1024, 2048, 4096, 8192],
+	"restore_prob" :         [0] #, 0.001, 0.005, 0.01]
 })
 
 experiments = [
-	#redis, 
+	redis, 
 	lighttpd, 
-	nginx
+	nginx,
 ]
 
 
@@ -113,7 +115,9 @@ breakpoints = {
 	},
 	"redis" : {
 		"acceptTcpHandler":             { "aarch64" : ('0x4479d0', 4),
-		                                  "x86_64"  : ('0x447a80', 2)}
+		                                  "x86_64"  : ('0x447a80', 2)},
+		"aeMain":                       { "aarch64" : ('0x42c808', 4),
+								          "x86_64"  : ('0x42c140', 1)}
 	}
 }
 
@@ -131,7 +135,7 @@ variant_after_start_cmds = [
 	 "$(pidof -s nginx),$(pidof -s redis-server)", True, True),
 ]
 
-kill_cmd = 'sh -c "for pid in $(pidof monmod_run.sh); do pkill -9 -g $pid; done"'
+kill_cmd = '~/monmod/scripts/stop_monmod.sh'
 sync_cmd = 'rsync {temp_conf_local} {user}@{addr}:~/{temp_conf_name}'
 variant_cmd = '~/monmod/scripts/monmod_run.sh {variant_id} ~/{temp_config_name} {target}'
 variant_cmd_sudo = True
@@ -196,16 +200,13 @@ def one_benchmark(conf):
 			time.sleep(4)
 			variant_1 = start_variant(variant_1_addr, user, target_cmd, 1)
 			time.sleep(1)
-			# TODO add warmup round
 			result = run_client(client_addr, user, client_cmd, target)
 			stop_variant(variant_0_addr, user, variant_0)
 			stop_variant(variant_1_addr, user, variant_1)
 			results.append(result)
 			write_result("{:7},  ".format(str(result)))
 		results = list(map(float, results))
-		results.sort()
-		median = results[len(results)//2]
-		write_result("Median: {:10}\n".format(median))
+		write_result(",".join("{:9}".format(x) for x in results) + "\n")
 	except KeyboardInterrupt:
 		return True
 	except BaseException as e:
@@ -360,6 +361,7 @@ def start_variant(addr, user, target, variant_id):
 	for variant_setup_cmd, sudo, ignore_nz in variant_setup_cmds:
 		run_safely(variant_setup_cmd, user=user, addr=addr, ignore_nz=True, 
 		           sudo=True)
+	time.sleep(1)
 
 	# Start variant
 	cmd = (variant_cmd.format(variant_id=variant_id,
