@@ -12,6 +12,8 @@ error_out () {
 	exit 1
 }
 
+sudo apt install -y rpl unzip autoconf || error_out
+
 if [ ! -d "$wrk_root" ]
 then
 	git clone https://github.com/wg/wrk "$wrk_root" &&
@@ -42,7 +44,8 @@ then
 	tar -xzvf nginx-1.22.1.tar.gz &&
 	mkdir "$nginx_root"/install &&
 	cd nginx-1.22.1 &&
-	./configure --prefix="$nginx_root/install" --with-debug &&
+	./configure --prefix="$nginx_root/install" \
+		--with-debug --without-http_rewrite_module &&
 	make &&
 	make install ||
 	error_out
@@ -56,7 +59,6 @@ then
 	wget https://download.lighttpd.net/lighttpd/releases-1.4.x/lighttpd-1.4.71.tar.gz &&
 	tar -xvzf lighttpd-1.4.71.tar.gz &&
 	cd "lighttpd-1.4.71" &&
-	./autogen.sh &&
 	./configure --prefix "$lighttpd_root/install" --without-zlib --without-bzip2 --without-pcre --without-pcre2 &&
 	make &&
 	make install ||
@@ -73,7 +75,7 @@ then
 	patch -p1 -i ../patches.patch &&
 	USE_JEMALLOC=no make distclean &&
 	USE_JEMALLOC=no make &&
-	mkdir "$redis_root/install" &&
+	mkdir -p "$redis_root/install" &&
 	PREFIX="$redis_root/install" make install ||
 	error_out
 	cd "$root"
