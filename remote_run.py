@@ -7,6 +7,7 @@ import getpass
 import time
 import re
 from collections import OrderedDict
+from textwrap import dedent
 
 
 # Variant Configuration File
@@ -29,13 +30,13 @@ target_cmds = {
 }
 
 client_cmds = {
-	"lighttpd" : "~/monmod-benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
+	"lighttpd" : "~/monmod/benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
 	             "http://128.195.4.134:3000",
-	"nginx"    : "~/monmod-benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
+	"nginx"    : "~/monmod/benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
 	             "http://128.195.4.134:3000",
-	"redis"    : "~/monmod-benchmarks/redis/install/bin/redis-benchmark -q "
-	             "-n 100000 -h 128.195.4.134 -p 6379 -c 10 -t PING_INLINE",
-	#"redis"    : "~/monmod-benchmarks/redis/install/bin/redis-benchmark -q "
+	"redis"    : "~/monmod/benchmarks/redis/install/bin/redis-benchmark -q "
+	             "-n 10000 -h 128.195.4.134 -p 6379 -c 10 -t PING_INLINE",
+	#"redis"    : "~/monmod/benchmarks/redis/install/bin/redis-benchmark -q "
 	#             "-n 1000 -h 128.195.4.134 -p 6379 -c 1 -t PING_INLINE",
 }
 
@@ -53,9 +54,9 @@ lighttpd = OrderedDict({
 	"fault_prob" :           [0],
 	"breakpoint" :           ["connection_close"],
 	"breakpoint_interval":   [1],
-	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
+	"policy" :               ["socket_rw_oc"], #, "socket_rw", "base", "full"],
 	"batch_size" :           [8192], # [0, 512, 1024, 2048, 4096, 8192],
-	"restore_prob" :         [0] #, 0.001, 0.005, 0.01, 0.05],
+	"restore_prob" :         [0.01] #, 0.001, 0.005, 0.01, 0.05],
 })
 
 nginx = OrderedDict({
@@ -64,9 +65,9 @@ nginx = OrderedDict({
 	"fault_prob" :           [0],
 	"breakpoint" :           ["ngx_close_connection"],
 	"breakpoint_interval":   [1],
-	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
+	"policy" :               ["socket_rw_oc"], #, "socket_rw", "base", "full"],
 	"batch_size" :           [8192], # [0, 512, 1024, 2048, 4096, 8192],
-	"restore_prob" :         [0] #, 0.001, 0.005, 0.01, 0.05],
+	"restore_prob" :         [0.01] #, 0.001, 0.005, 0.01, 0.05],
 })
 
 redis = OrderedDict({
@@ -75,9 +76,9 @@ redis = OrderedDict({
 	"fault_prob" :           [0],
 	"breakpoint" :           ["aeMain"],
 	"breakpoint_interval" :  [1],
-	"policy" :               ["socket_rw_oc" "socket_rw", "base", "full"],
-	"batch_size" :           [8192], # [0, 512, 1024, 2048, 4096, 8192],
-	"restore_prob" :         [0] #, 0.001, 0.005, 0.01]
+	"policy" :               ["socket_rw_oc"], #, "socket_rw", "base", "full"],
+	"batch_size" :           [0], # [0, 512, 1024, 2048, 4096, 8192],
+	"restore_prob" :         [0.01] #, 0.001, 0.005, 0.01]
 })
 
 experiments = [
@@ -92,32 +93,32 @@ other_template_keys = {
 	"variant_1_breakpoint" : "breakpoint"
 }
 
+# For each architecture, the breakpoint definition is a tuple 
+# (symbol, offset, len)
 breakpoints = {
 	"lighttpd" : {
-		"connection_accept":            { "aarch64" : ('0x40de50', 4),
-		                                  "x86_64"  : ('0x40e0e0', 1)},
-		"connection_close":             { "aarch64" : ('0x41fc3c', 4),
-		                                  "x86_64"  : ('0x41d440', 1)},
-		"fdevent_linux_sysepoll_poll":  { "aarch64" : ('0x42a6e8', 4),
-		                                  "x86_64"  : ('0x42ac40', 2)},
-		"fdevent_linux_sysepoll_init":  { "aarch64" : ('0x42a8f0', 4),
-		                                  "x86_64"  : ('0x42ae00', 1)}
+		# most functions in lighttpd are static, thus their symbol not available at run time.
+		# therefore we express those addresses as offsets from main (Which is available)
+		"connection_close":             { "aarch64" : ('main', 0x136A8, 4),
+		                                  "x86_64"  : ('main', 0x15685, 1)},
+		"fdevent_linux_sysepoll_poll":  { "aarch64" : ('main', 0x16958, 4),
+		                                  "x86_64"  : ('main', 0x180F5 + 4, 2)},
 	},
 	"nginx" : {
-		"ngx_event_accept":             { "aarch64" : ('0x42f8d8', 4),
-		                                   "x86_64" : ('0x42dff7', 2)},
-		"ngx_close_connection":         { "aarch64" : ('0x41f6b0', 4),
-		                                  "x86_64"  : ('0x41da6d', 2)},
-		"ngx_epoll_process_events":     { "aarch64" : ('0x43a054', 4),
-		                                  "x86_64"  : ('0x4380e5', 2)},
-		"ngx_epoll_init":               { "aarch64" : ('0x439b28', 4),
-		                                  "x86_64"  : ('0x437b5d', 2)},
+		"ngx_event_accept":             { "aarch64" : ('ngx_event_accept', 0, 4),
+		                                   "x86_64" : ('ngx_event_accept', 4, 2)},
+		"ngx_close_connection":         { "aarch64" : ('ngx_close_connection', 0, 4),
+		                                  "x86_64"  : ('ngx_close_connection', 4, 2)},
+		"ngx_epoll_process_events":     { "aarch64" : ('ngx_epoll_process_events', 0, 4),
+		                                  "x86_64"  : ('ngx_epoll_process_events', 4, 2)},
+		"ngx_epoll_init":               { "aarch64" : ('ngx_epoll_init', 0, 4),
+		                                  "x86_64"  : ('ngx_epoll_init', 4, 2)},
 	},
 	"redis" : {
-		"acceptTcpHandler":             { "aarch64" : ('0x4479d0', 4),
-		                                  "x86_64"  : ('0x447a80', 2)},
-		"aeMain":                       { "aarch64" : ('0x42c808', 4),
-								          "x86_64"  : ('0x42c140', 1)}
+		"acceptTcpHandler":             { "aarch64" : ('acceptTcpHandler', 0, 4),
+		                                  "x86_64"  : ('acceptTcpHandler', 4, 2)},
+		"aeMain":                       { "aarch64" : ('aeMain', 0, 4),
+								          "x86_64"  : ('aeMain', 4, 1)}
 	}
 }
 
@@ -258,8 +259,8 @@ def iterate_configs(conf, add_vars):
 		del add_vars[k]
 		for v in v_opts:
 			conf[k] = v
-			for conf in iterate_configs(conf, add_vars):
-				yield conf
+			for c in iterate_configs(conf, add_vars):
+				yield c
 
 
 def create_config(conf):
@@ -288,10 +289,14 @@ def get_config_value(conf, k, v):
 	else:
 		arch = variant_1_arch
 	
-	template = ('{{ interval = {interval};\n'
-	            '  pc = {pc};\n'
-		    '  instr_len = {instr_len};\n'
-		    '}} \n')
+	template = dedent("""
+		{{
+		interval = {interval};
+		symbol = "{symbol}";
+		offset = {offset};
+		instr_len = {instr_len};
+		}}
+	""")
 	target = conf["target"]
 	interval = (conf["breakpoint_interval"] 
 	            if "breakpoint_interval" in conf else 1)
@@ -301,9 +306,9 @@ def get_config_value(conf, k, v):
 	assert variant_0_addr == "eiger.ics.uci.edu"
 	assert variant_1_addr == "blackforest.ics.uci.edu"
 
-	pc, instr_len = breakpoints[target][v][arch]
+	symbol, offset, instr_len = breakpoints[target][v][arch]
 
-	return template.format(interval=interval, pc=pc, instr_len=instr_len)
+	return template.format(interval=interval, symbol=symbol, offset=offset, instr_len=instr_len)
 
 
 def run_safely(cmd, ignore_nz=False, sudo=False, dont_wait=False, timeout=10,
