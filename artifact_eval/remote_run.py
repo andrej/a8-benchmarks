@@ -11,13 +11,13 @@ from textwrap import dedent
 
 
 # Variant Configuration File
-variant_0_addr = "eiger.ics.uci.edu"
+variant_0_addr = "example.org"
 variant_0_ip = "10.0.0.15"
 variant_0_arch = "aarch64"
-variant_1_addr = "blackforest.ics.uci.edu"
+variant_1_addr = "example.com"
 variant_1_ip = "10.0.0.30"
 variant_1_arch = "x86_64"
-client_addr = "dreamer.ics.uci.edu"
+client_addr = "example.net"
 
 repetitions = 1
 
@@ -255,11 +255,6 @@ def get_config_value(conf, k, v):
 	target = conf["target"]
 	interval = (conf["breakpoint_interval"] 
 	            if "breakpoint_interval" in conf else 1)
-	
-	# Below breakpoints only apply if targets are aarch64 on variant 0,
-	# and x86 on variant 1. Otherwise update breakpoint addresses below.
-	assert variant_0_addr == "eiger.ics.uci.edu"
-	assert variant_1_addr == "blackforest.ics.uci.edu"
 
 	symbol, offset, instr_len = breakpoints[target][v][arch]
 

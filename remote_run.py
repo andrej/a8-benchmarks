@@ -11,11 +11,11 @@ from textwrap import dedent
 
 
 # Variant Configuration File
-variant_0_addr = "eiger.ics.uci.edu"
+variant_0_addr = "example.org"
 variant_0_arch = "aarch64"
-variant_1_addr = "blackforest.ics.uci.edu"
+variant_1_addr = "example.com"
 variant_1_arch = "x86_64"
-client_addr = "dreamer.ics.uci.edu"
+client_addr = "example.net"
 
 # List all values you want to test in a list for each key. All combinations
 # will be benchmarked.
@@ -148,7 +148,7 @@ temp_config_name = "temp_config.ini"
 
 ################################################################################
 
-user = "andre"
+user = "<username>"
 password = None
 stdout_log = None
 stderr_log = None
@@ -301,11 +301,6 @@ def get_config_value(conf, k, v):
 	interval = (conf["breakpoint_interval"] 
 	            if "breakpoint_interval" in conf else 1)
 	
-	# Below breakpoints only apply if targets are aarch64 on variant 0,
-	# and x86 on variant 1. Otherwise update breakpoint addresses below.
-	assert variant_0_addr == "eiger.ics.uci.edu"
-	assert variant_1_addr == "blackforest.ics.uci.edu"
-
 	symbol, offset, instr_len = breakpoints[target][v][arch]
 
 	return template.format(interval=interval, symbol=symbol, offset=offset, instr_len=instr_len)

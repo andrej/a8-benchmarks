@@ -24,7 +24,7 @@ restore_probability = 0.00;
 inject_fault_probability = 0;
 
 variants = (
-        { # eiger
+        { # variant 0
                 id = 0;
                 address = "127.0.0.1";
                 port = 7773;
