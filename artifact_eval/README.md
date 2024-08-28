@@ -217,7 +217,7 @@ Ensure the following build flag is set as follows:
 
 ``` 
 #define MONMOD_MONITOR_PROTECTION        (MONMOD_MONITOR_FLAG_PROTECTED \
-                                          | MONMOD_MONITOR_COMPARE_PROTECTED) 
+                                          | MONMOD_MONITOR_HASH_PROTECTED) 
 ```
 
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
@@ -331,7 +331,7 @@ Make sure the following flags are set:
 
 ``` 
 #define MONMOD_MONITOR_PROTECTION        (MONMOD_MONITOR_FLAG_PROTECTED \
-                                          | MONMOD_MONITOR_COMPARE_PROTECTED) 
+                                          | MONMOD_MONITOR_HASH_PROTECTED) 
 ```
 
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
@@ -357,7 +357,7 @@ baseline. Please make sure to run that benchmark before this one.
 
 ``` 
 #define MONMOD_MONITOR_PROTECTION        (MONMOD_MONITOR_FLAG_PROTECTED \
-                                          | MONMOD_MONITOR_COMPARE_PROTECTED) 
+                                          | MONMOD_MONITOR_HASH_PROTECTED) 
 ```
 
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
