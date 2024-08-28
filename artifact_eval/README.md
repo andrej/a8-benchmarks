@@ -1,8 +1,8 @@
 # Artifact Evaluation Instructions
 
-> Copy this directory onto all VMs.
-> Everything needed for artifact evaluation from the client side is in
-> `/benchmarks/artifact_eval/`.
+> Everything needed for artifact evaluation from the client side is located in
+> the subdirectory
+> `/monmod/benchmarks/artifact_eval/`.
 
 Thank you for taking the time to evaluate our artifacts. We hope these
 instructions make it as easy as possible to test the functionality of our 
