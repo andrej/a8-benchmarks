@@ -1,0 +1,22 @@
+
+results_nginx = {}
+results_lighttpd = {}
+results_redis = {}
+results_nginx[0] = (2148.50,)
+results_nginx[512] = (2963.79,)
+results_nginx[1024] = (3369.11,)
+results_nginx[2048] = (3350.71,)
+results_nginx[4096] = (3511.78,)
+results_nginx[8192] = (3537.16,)
+results_lighttpd[0] = (3459.52,)
+results_lighttpd[512] = (7306.69,)
+results_lighttpd[1024] = (7722.34,)
+results_lighttpd[2048] = (8009.24,)
+results_lighttpd[4096] = (8146.43,)
+results_lighttpd[8192] = (8222.05,)
+results_redis[0] = (2951.59,)
+results_redis[512] = (7926.31,)
+results_redis[1024] = (8757.44,)
+results_redis[2048] = (9276.44,)
+results_redis[4096] = (9624.64,)
+results_redis[8192] = (9824.17,)

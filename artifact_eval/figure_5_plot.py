@@ -181,5 +181,5 @@ ax.set_yticks(yticks, labels=ytick_labels)
 
 sns.despine()
 plt.tight_layout()
-fig.savefig('figures/overall_with_failures.pdf')
+fig.savefig('figure_5.pdf')
 # plt.show()

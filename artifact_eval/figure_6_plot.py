@@ -4,7 +4,44 @@ import seaborn as sns
 import styling
 from styling import mean, stddev, stddev_perc
 
-from figure_6_data import data
+from figure_5_6_7_native_results import *
+from figure_6_results import *
+
+# ##########################################################################
+# Data
+# ##########################################################################
+
+data = {}
+
+#  - breakpoint at ngx_close_connection
+#  - batching 8192
+#  - no failures
+data["nginx"] = {} 
+data["nginx"]      ["native"] =  results_nginx_native
+data["nginx"]["socket_rw_oc"] =  results_nginx["socket_rw_oc"]
+data["nginx"]   ["socket_rw"] =  results_nginx["socket_rw"]
+data["nginx"]        ["base"] =  results_nginx["base"]
+data["nginx"]        ["full"] =  results_nginx["full"]
+
+#  - breakpoint at connection_close
+#  - policy socket_rw_oc
+#  - no failures
+data["lighttpd"] = {}
+data["lighttpd"]      ["native"] = results_lighttpd_native 
+data["lighttpd"]["socket_rw_oc"] = results_lighttpd["socket_rw_oc"]
+data["lighttpd"]   ["socket_rw"] = results_lighttpd["socket_rw"] 
+data["lighttpd"]        ["base"] = results_lighttpd["base"] 
+data["lighttpd"]        ["full"] = results_lighttpd["full"] 
+
+#  - breakpoint at acceptTcpHandler
+#  - policy socket_rw_oc
+#  - no failures
+data["redis"] = {}
+data["redis"]      ["native"] = results_redis_native 
+data["redis"]["socket_rw_oc"] = results_redis["socket_rw_oc"]
+data["redis"]   ["socket_rw"] = results_redis["socket_rw"] 
+data["redis"]        ["base"] = results_redis["base"] 
+data["redis"]        ["full"] = results_redis["full"] 
 
 # ##########################################################################
 # Plotting
@@ -85,5 +122,5 @@ ax.set_yticks(yticks, labels=ytick_labels)
 
 sns.despine()
 plt.tight_layout()
-fig.savefig('figures/overall_policies.pdf')
+fig.savefig('figure_6.pdf')
 # plt.show()

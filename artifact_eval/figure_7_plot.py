@@ -4,7 +4,50 @@ import seaborn as sns
 import styling
 from styling import mean, stddev, stddev_perc
 
-from figure_7_data import data
+from figure_5_6_7_native_results import *
+from figure_7_results import *
+
+# ##########################################################################
+# Data
+# ##########################################################################
+
+data = {}
+
+#  - breakpoint at ngx_close_connection
+#  - batching 8192
+#  - no failures
+data["nginx"] = {} 
+data["nginx"]["native"] =  results_nginx_native
+data["nginx"]   ["0 B"] =  results_nginx[0]
+data["nginx"] ["512 B"] =  results_nginx[512]
+data["nginx"]  ["1 KB"] =  results_nginx[1024]
+data["nginx"]  ["2 KB"] =  results_nginx[2048]
+data["nginx"]  ["4 KB"] =  results_nginx[4096]
+data["nginx"]  ["8 KB"] =  results_nginx[8192]
+
+#  - breakpoint at connection_close
+#  - policy socket_rw_oc
+#  - no failures
+data["lighttpd"] = {}
+data["lighttpd"]["native"] =  results_lighttpd_native
+data["lighttpd"]   ["0 B"] =  results_lighttpd[0]
+data["lighttpd"] ["512 B"] =  results_lighttpd[512]
+data["lighttpd"]  ["1 KB"] =  results_lighttpd[1024]
+data["lighttpd"]  ["2 KB"] =  results_lighttpd[2048]
+data["lighttpd"]  ["4 KB"] =  results_lighttpd[4096]
+data["lighttpd"]  ["8 KB"] =  results_lighttpd[8192]
+
+#  - breakpoint at acceptTcpHandler
+#  - policy socket_rw_oc
+#  - no failures
+data["redis"] = {}
+data["redis"]["native"] =  results_redis_native
+data["redis"]   ["0 B"] =  results_redis[0]
+data["redis"] ["512 B"] =  results_redis[512]
+data["redis"]  ["1 KB"] =  results_redis[1024]
+data["redis"]  ["2 KB"] =  results_redis[2048]
+data["redis"]  ["4 KB"] =  results_redis[4096]
+data["redis"]  ["8 KB"] =  results_redis[8192]
 
 # ##########################################################################
 # Plotting
@@ -83,5 +126,5 @@ ax.set_yticks(yticks, labels=ytick_labels)
 
 sns.despine()
 plt.tight_layout()
-fig.savefig('figures/overall_batch_size.pdf')
+fig.savefig('figure_7.pdf')
 # plt.show()

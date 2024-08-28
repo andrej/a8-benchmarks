@@ -1,0 +1,7 @@
+results_fork_1 = (10.306546, )
+results_fork_10 = (2.137272, )
+results_fork_100 = (1.263535, )
+results_fork_1000 = (1.175357, )
+results_fork_10000 = (1.165156, )
+results_fork_100000 = (1.166232, )
+results_fork_1000000 = (1.166607, )

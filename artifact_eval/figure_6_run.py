@@ -3,7 +3,7 @@
 from remote_run import main, OrderedDict
 
 nginx = OrderedDict({
-    "var_name_func": [lambda e, c: f"results_nginx[{c["policy"]}]"],
+    "var_name_func": [lambda e, c: f"results_nginx['{c["policy"]}']"],
 	"target" :               ["nginx"],
 	"leader_id" :            [0],
 	"fault_prob" :           [0],
@@ -15,7 +15,7 @@ nginx = OrderedDict({
 })
 
 lighttpd = OrderedDict({
-    "var_name_func": [lambda e, c: f"results_lighttpd[{c["policy"]}]"],
+    "var_name_func": [lambda e, c: f"results_lighttpd['{c["policy"]}']"],
 	"target" :               ["lighttpd"],
 	"leader_id" :            [0],
 	"fault_prob" :           [0],
@@ -27,11 +27,11 @@ lighttpd = OrderedDict({
 })
 
 redis = OrderedDict({
-    "var_name_func": [lambda e, c: f"results_redis[{c["policy"]}]"],
+    "var_name_func": [lambda e, c: f"results_redis['{c["policy"]}']"],
 	"target" :               ["redis"],
 	"leader_id" :            [0],
 	"fault_prob" :           [0],
-	"breakpoint" :           ["acceptTcpHandler"],
+	"breakpoint" :           ["aeMain"],
 	"breakpoint_interval" :  [1],
 	"policy" :               ["socket_rw_oc", "socket_rw", "base", "full"],
 	"batch_size" :           [8192],
@@ -44,4 +44,10 @@ experiments = [
 	redis, 
 ]
 
-main(experiments, "figure_6")
+results_log_prefix = """
+results_nginx = {}
+results_lighttpd = {}
+results_redis = {}
+"""
+
+main(experiments, "figure_6", results_log_prefix=results_log_prefix)

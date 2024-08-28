@@ -1,0 +1,6 @@
+results_criu_10 = (8.217250, ) 
+results_criu_100 = (1.887677, )
+results_criu_1000  = (1.240218, )
+results_criu_10000  = (1.242100, )
+results_criu_100000 =  (1.239817, )
+results_criu_1000000 =  (1.239817, )
