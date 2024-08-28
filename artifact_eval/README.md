@@ -410,7 +410,7 @@ variable. If the default value does not work, try values between 1 - 4 for the
 `instr_len` setting.
 
 CRIU takes a really long time especially at frequent checkpoint intervals.
-If you run into issues (e.g. your filling your VM's hard drive with checkpoint images),
+If you run into issues (e.g. you are filling your VM's hard drive with checkpoint images),
 you can reduce the number of iterations of the microbenchmark. Just adjust the
 appropriate constant in `~/monmod/benchmarks/microbenchmarks/build_config.h` and
 rebuild using `make`. You will of course have to re-run your baseline again
