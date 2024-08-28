@@ -21,7 +21,8 @@ troubleshooting is needed:
 
 Our system replicates program execution across a set of distributed hosts and 
 monitors their behavior. It does so through two components that are present
-on each host
+on each host:
+
   - a kernel module, found in `/kernel_module/`
   - a preloadable shared library, found in `/library/`.
 
@@ -132,23 +133,27 @@ fall:
     2. Adjust settings in `include/build_config.h` as outlined for the figure
        you are reproducing. The build settings for each figure are given below.
     3. Build: `make clean && VERBOSITY=0 make`. 
+
        > `VERBOSITY=0` turns off logging to get accurate performance measurements.
        > If you turn on logging to troubleshoot something, the logs will appear
        > in `/var/log/syslog` with the prefix `monmod: ` (the working title of
        > the system)
+
     4. Remove already-running kernel module, if any: `sudo rmmod monmod`
     5. Insert the newly built module: `sudo insmod build/monmod.ko`
 
 4. On `vm1` and `vm2`, compile the preloadable shared library.
+
     1. `cd library`
     2. Adjust settings in `include/build_config.h` as outlined for the figure
        you are reproducing. 
     3. Build: `make clean && OPT=1 make`. 
-       > `OPT=1` implies `VERBOSITY=0`, unless otherwise specified.
-       > `VERBOSITY=0` turns off logging to get accurate performance measurements.
-       > If you turn on logging to troubleshoot something, the logs will appear
-       > in `monmod_{id}_{ancestry}.log` files.
-       > Note that some benchmarks below require `VERBOSITY=1`.
+
+      > `OPT=1` implies `VERBOSITY=0`, unless otherwise specified.
+      > `VERBOSITY=0` turns off logging to get accurate performance measurements.
+      > If you turn on logging to troubleshoot something, the logs will appear
+      > in `monmod_{id}_{ancestry}.log` files.
+      > Note that some benchmarks below require `VERBOSITY=1`.
 
       **Note:** Changing build environment variables does not invalidate your
       build. If you set different environment variables, you **must** call
@@ -161,9 +166,29 @@ fall:
    using `libvma` 
    (privilege `CAP_NET_RAW`).
 
+   > Depending on the figure, the run script does slightly different things,
+   > but in most cases it
+   >  1. Generates a configuration file for our system and stores it at
+   >     `~/config_temp.ini` on all servers.
+   >  2. Launches execution of the to-be-benchmarked application on one or
+   >     two machines by running something like 
+   >     `~/monmod/scripts/monmod_start.sh ~/config_temp.ini <id> <cmd>
+   >  3. Launches a benchmarking command on `vm3`. For some benchmarks, instead
+   >     of launching a benchmarking command on `vm3`, the script simply waits
+   >     for the started program to terminate and measures the total execution
+   >     time.
+   >  4. Store the measurement results in a file named `figure_X_results.py`,
+   >     which the plot script will include to create plot.
+
+   > **Note:**
    > The commands that are being executed on each server will be printed 
      with a `>` prefixed. If there's an error during any of these commands,
      try running it manually and see if there is any error output.
+   
+   > **Note:**
+   > If you have an unstable Internet connection, it may help to play around
+   > with the various timeouts in the scripts, or just run the commands
+   > manually.
 
 6. Run the "plot" script for the appropriate figure. This should pick up the
    data stored by the run file, calculate relative overheads and plot a
@@ -425,12 +450,32 @@ our overheads for the examples with less batching.
 
 ## Troubleshooting
 
- - As mentioned above, if any errors occur, please first turn on logging. By
+ - As mentioned above, if any errors occur, **please first turn on logging**. By
    default, no messages are printed for performance reasons. Logging is turned
    on by rebuilding the kernel module and the shared library with the
    `VERBOSITY` environment variable set. You will need to clear your old build.
    Logs are in `monmod_{id}_*.log` files for the shared library and in 
-   `/var/log/syslog` for the kernel module.
+   `/var/log/syslog` for the kernel module. Each benchmark run on the user side
+   also generates files `figure_X_stdout.log` and `figure_X_stderr.log` which 
+   may be useful for troubleshooting.
+
+ - Probably the **most common error** is related to the network configuration.
+   Ensure that all hosts are reachable from one another, e.g. by trying to
+   ping them. To rule out network issues as the source of a problem, you can
+   edit the configuration file for the current benchmark once it has been
+   generated into `~/config_temp.ini` and remove all but one variant. If you
+   run a single variant, network communication shouldn't be an issue, and if the
+   problem persists, you know to look elsewhere.
+
+ - Similarly, some issues can be ruled out by editing the config file 
+   `~/config_temp.ini`. For example, if checkpointing is causing issues, you can
+   disable all checkpoints by removing the breakpoitnts in the config file.
+
+ - Another **very common error** is running mismatched monitors/variants. Upon
+   encountering an issue, please double-check that the libraries and kernel
+   modules on each host have been compiled with exactly the same flags. Also
+   ensure that all variants are using the same configuration by inspecting the
+   `~/config_temp.ini` file.
 
  - Resetting: If things end up in a weird state, it doesn't hurt to reset
    everything. The `~/monmod/scripts/stop_monmod.sh` script does just that
