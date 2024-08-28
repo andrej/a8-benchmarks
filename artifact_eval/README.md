@@ -1,5 +1,9 @@
 # Artifact Evaluation Instructions
 
+> Copy this directory onto all VMs.
+> Everything needed for artifact evaluation from the client side is in
+> `/benchmarks/artifact_eval/`.
+
 Thank you for taking the time to evaluate our artifacts. We hope these
 instructions make it as easy as possible to test the functionality of our 
 system.
@@ -251,7 +255,8 @@ python3 figure_8_run.py 1
 
 Configure and build the kernel module with this setting in `kernel_module/include/build_config.h:
 ```
-#define MONMOD_MONITOR_PROTECTION        (MONMOD_MONITOR_FLAG_PROTECTED | MONMOD_MONITOR_COMPARE_PROTECTED) 
+#define MONMOD_MONITOR_PROTECTION        (MONMOD_MONITOR_FLAG_PROTECTED \
+                                          | MONMOD_MONITOR_COMPARE_PROTECTED) 
 ```
 
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
