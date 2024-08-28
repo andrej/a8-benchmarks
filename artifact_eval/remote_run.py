@@ -13,19 +13,15 @@ from textwrap import dedent
 # Variant Configuration File
 # Please fill in correct values below.
 variant_0_addr = "example.org"
-variant_0_ip = "127.0.0.1"
-variant_0_arch = "aarch64"
 variant_1_addr = "example.com"
-variant_1_ip = "127.0.0.1"
+variant_0_ip   = "127.0.0.1"
+variant_1_ip   = "127.0.0.1"
+variant_0_arch = "x86_64"  # or aarch64
 variant_1_arch = "x86_64"
-client_addr = "example.net"
-user = "artifacts"
+client_addr    = "example.net"
+user           = "artifacts"
 
 repetitions = 1
-
-
-# List all values you want to test in a list for each key. All combinations
-# will be benchmarked.
 
 target_cmds = {
 	"lighttpd" : "~/monmod/benchmarks/lighttpd/install/sbin/lighttpd -D "
