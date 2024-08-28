@@ -182,7 +182,8 @@ def one_benchmark(conf):
 			results_log.flush()
 			if "native" not in conf:
 				stop_variant(variant_0_addr, user, variant_0)
-				stop_variant(variant_1_addr, user, variant_1)
+				if variant_0_addr != variant_1_addr:
+					stop_variant(variant_1_addr, user, variant_1)
 			else:
 				run_safely("killall -9 redis-server lighttpd nginx", addr=variant_0_addr, user=user, sudo=True, ignore_nz=True)
 			results.append(result)

@@ -51,7 +51,8 @@ def bench_func(benchmarks, results_log):
         rsync_config(variant_1_addr, user)
         for _ in range(repetitions):
             run_safely(kill_cmd, sudo=True, user=user, addr=variant_0_addr, ignore_nz=True, shell=True)
-            run_safely(kill_cmd, sudo=True, user=user, addr=variant_1_addr, ignore_nz=True, shell=True)
+            if variant_0_addr != variant_1_addr:
+                run_safely(kill_cmd, sudo=True, user=user, addr=variant_1_addr, ignore_nz=True, shell=True)
             cmd = our_cmd_template
             cmd_0 = cmd.format(0)
             cmd_1 = cmd.format(1)
