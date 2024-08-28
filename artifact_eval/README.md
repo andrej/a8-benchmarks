@@ -210,7 +210,7 @@ benchmarks it from `vm3`. The results are stored in `./figure_5_6_7_native_resul
 You must run this before any of the plot scripts for figure 5, 6, 7, as those
 figures use the baseline to calculate relative overheads.
 
-### kernel_module configuration
+### `kernel_module/include/build_config.h`
 
 Ensure the following build flag is set as follows:
 
@@ -222,13 +222,14 @@ Ensure the following build flag is set as follows:
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
  - Make sure to reload kernel module after rebuilding: `sudo rmmod monmod; sudo insmod build/monmod.ko`
 
-### library configuration
+### `library/include/build_config.h`
 
 If your network card supports acceleration through libVMA, build with 
 environment variable `USE_LIBVMA=2` set: `make clean && USE_LIBVMA=2 OPT=1 make`
 
 ```
 #define ENABLE_CHECKPOINTING FORK_CHECKPOINTING 
+#define MEASURE_TRACING_OVERHEAD 0
 ```
 
  - Build with `OPT=1`
@@ -236,7 +237,7 @@ environment variable `USE_LIBVMA=2` set: `make clean && USE_LIBVMA=2 OPT=1 make`
 
 ## Figure 8
 
-### library configuration in `library/include/build_config.h` -- for all iterations
+### `library/include/build_config.h` -- for all iterations
 
 ```
 #define ENABLE_CHECKPOINTING NO_CHECKPOINTING 
@@ -270,13 +271,15 @@ Configure and build the **kernel module** with this setting in `kernel_module/in
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
  - Make sure to reload kernel module after rebuilding: `sudo rmmod monmod; sudo insmod build/monmod.ko`
 
-### running
-Run the run script as to generate results in `figure_8_1_results.py`:
+### Running
+
+Run the run script as follows, with argument `1`, to generate results in 
+`figure_8_1_results.py`:
 ```
 python3 figure_8_run.py 1
 ```
 
-### iteration 2  -- compare/flag protected results
+### `kernel_module/include/build_config.h` for iteration 2 -- compare/flag protected results
 
 Configure and build the kernel module with this setting in `kernel_module/include/build_config.h:
 ```
@@ -287,15 +290,17 @@ Configure and build the kernel module with this setting in `kernel_module/includ
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
  - Make sure to reload kernel module after rebuilding: `sudo rmmod monmod; sudo insmod build/monmod.ko`
 
-### running
-Run the run script as to generate results in `figure_8_2_results.py`:
+### Running
+
+Run the run script as follows, with argument `2`, to generate results in 
+`figure_8_2_results.py`:
 ```
 python3 figure_8_run.py 2
 ```
 
-### iteration 3 -- mprotected results
+### `kernel_module/include/build_config.h` for iteration 3 -- mprotected results
 
-Configure and build the kernel module with this setting in `kernel_module/include/build_config.h:
+Configure and build the kernel module with this setting in `kernel_module/include/build_config.h`:
 ```
 #define MONMOD_MONITOR_PROTECTION        MONMOD_MONITOR_FLAG_MPROTECTED 
 ```
@@ -303,9 +308,11 @@ Configure and build the kernel module with this setting in `kernel_module/includ
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
  - Make sure to reload kernel module after rebuilding: `sudo rmmod monmod; sudo insmod build/monmod.ko`
 
-### running
+### Running
 
-Run the run script as to generate results in `figure_8_3_results.py`:
+Run the run script as follows, with argument `3`, to generate results in 
+`figure_8_3_results.py`:
+
 ```
 python3 figure_8_run.py 3
 ```
@@ -317,7 +324,9 @@ iterations 0 and 2, for the syscall interception baseline. Make sure to run it f
 
 **Important Note: These benchmarks require VERBOSITY=1 to be set when compiling the library.**
 
-### kernel_module configuration -- for all iterations
+### `kernel_module/include/build_config.h` -- configuration for all iterations
+
+Make sure the following flags are set:
 
 ``` 
 #define MONMOD_MONITOR_PROTECTION        (MONMOD_MONITOR_FLAG_PROTECTED \
@@ -327,7 +336,9 @@ iterations 0 and 2, for the syscall interception baseline. Make sure to run it f
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
  - Make sure to reload kernel module after rebuilding: `sudo rmmod monmod; sudo insmod build/monmod.ko`
 
-### library configuration in library/include/build_config.h
+### `library/include/build_config.h` -- configuration for all iterations
+
+Make sure the following flags are set:
 
 ```
 #define ENABLE_CHECKPOINTING FORK_CHECKPOINTING 
@@ -341,7 +352,7 @@ Please make sure you build with `make clean && VERBOSITY=1 OPT=1 make`.
 Figure 10 depends on the results of figure 8, iteration 0, to establish a
 baseline. Please make sure to run that benchmark before this one.
 
-### kernel_module configuration -- for all iterations
+### `kernel_module/include/build_config.h` -- configuration for all iterations
 
 ``` 
 #define MONMOD_MONITOR_PROTECTION        (MONMOD_MONITOR_FLAG_PROTECTED \
@@ -351,7 +362,7 @@ baseline. Please make sure to run that benchmark before this one.
  - Build with `VERBOSITY=0`: `make clean && VERBOSITY=0 make`
  - Make sure to reload kernel module after rebuilding: `sudo rmmod monmod; sudo insmod build/monmod.ko`
 
-### iteration 0 -- library configuration in library/include/build_config.h
+### `library/include/build_config.h` for iteration 0 
 
 ```
 #define ENABLE_CHECKPOINTING FORK_CHECKPOINTING 
@@ -360,15 +371,18 @@ baseline. Please make sure to run that benchmark before this one.
 
 Please make sure you build with `make clean && VERBOSITY=1 OPT=1 make`.
 
-### run
+### Running
+
+Note the argument `0` to the run function to indicate this is the first 
+iteration.
 
 ```
-python3 ./figure_10_run.py 0
+python3 ./figure_11_run.py 0
 ```
 
-The results will be stored in `./figure_10_0_results.py`.
+The results will be stored in `./figure_11_0_results.py`.
 
-### iteration 1 -- library configuration in library/include/build_config.h
+### `library/include/build_config.h` for iteration 1
 
 ```
 #define ENABLE_CHECKPOINTING CRIU_CHECKPOINTING   # <-- enable CRIU
@@ -377,13 +391,15 @@ The results will be stored in `./figure_10_0_results.py`.
 
 Please build using `make clean && VERBOSITY=1 OPT=1 make`.
 
-### run
+### Running
+
+Note the `1` argument.
 
 ```
 python3 ./figure_11_run.py 1
 ```
 
-The results will be stored in `./figure_10_1_results.py`.
+The results will be stored in `./figure_11_1_results.py`.
 
 ### Troubleshooting for this step
 
@@ -400,7 +416,7 @@ rebuild using `make`. You will of course have to re-run your baseline again
 after doing this as well.
 
 
-### after all iterations
+### After all iterations
 
 Please run the plot command after all run iterations:
 ```
