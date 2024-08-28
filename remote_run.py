@@ -31,13 +31,13 @@ target_cmds = {
 
 client_cmds = {
 	"lighttpd" : "~/monmod/benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
-	             "http://128.195.4.134:3000",
+	             f"http://{variant_0_ip}:3000",
 	"nginx"    : "~/monmod/benchmarks/wrk/wrk -d10s -t10 -c10 --timeout 10s "
-	             "http://128.195.4.134:3000",
+	             f"http://{variant_0_ip}:3000",
 	"redis"    : "~/monmod/benchmarks/redis/install/bin/redis-benchmark -q "
-	             "-n 10000 -h 128.195.4.134 -p 6379 -c 10 -t PING_INLINE",
+	             f"-n 10000 -h {variant_0_ip} -p 6379 -c 10 -t PING_INLINE",
 	#"redis"    : "~/monmod/benchmarks/redis/install/bin/redis-benchmark -q "
-	#             "-n 1000 -h 128.195.4.134 -p 6379 -c 1 -t PING_INLINE",
+	#             f"-n 1000 -h {variant_0_ip} -p 6379 -c 1 -t PING_INLINE",
 }
 
 client_kill_cmd = ("killall -9 wrk redis-benchmark", True, True)
