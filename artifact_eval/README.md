@@ -93,11 +93,12 @@ fall:
 5. On `vm1` and `vm2`: (Identical)
    1. Copy the entirety of our artifact to both machines into the home directory
       `~`. All scripts expect things to be installed in the home directory.
-   2. Run the script `./bootstrap.sh` at the root. This will install 
+   2. Run the script `./bootstrap.sh` inside `~/monmod`. This will install 
        dependencies.
-   3. Run the script `./benchmarks/bootstrap.sh`. This will fetch and compile
-       our benchmarks: `nginx`, `lighttpd`, `redis` and the microbenchmarks. 
-       This may take a while.
+   3. Run the script `benchmarks/bootstrap.sh` from within the 
+      `~/monmod/benchmarks` directory. This will fetch and compile
+      our benchmarks: `nginx`, `lighttpd`, `redis` and the microbenchmarks. 
+      This may take a while.
 6. On `vm3`:
    1. Copy the subdirectory `benchmarks` onto the machine.
    2. Run the script `./benchmarks/bootstrap.sh`. This will fetch and compile
