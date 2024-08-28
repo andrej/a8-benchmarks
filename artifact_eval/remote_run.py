@@ -89,11 +89,6 @@ breakpoints = {
 	}
 }
 
-# Commands / config
-# Command, sudo, ignore_nz
-variant_setup_cmds = [
-	("~/monmod/scripts/stop_monmod.sh", True, True),
-]
 
 variant_after_start_cmds = [
 	#("cset shield --cpu 10-12", True, True),
@@ -171,6 +166,9 @@ def one_benchmark(conf):
 		results = []
 		for _ in range(repetitions):
 			if "native" not in conf:
+				stop_variant(variant_0_addr, user, variant_0)
+				if variant_0_addr != variant_1_addr:
+					stop_variant(variant_1_addr, user, variant_1)
 				variant_0 = start_variant(variant_0_addr, user, target_cmd, 0)
 				time.sleep(4)
 				variant_1 = start_variant(variant_1_addr, user, target_cmd, 1)
@@ -323,12 +321,6 @@ def rsync_config(addr, user):
 
 def start_variant(addr, user, target, variant_id):
 
-	# Kill any previous variants
-	for variant_setup_cmd, sudo, ignore_nz in variant_setup_cmds:
-		run_safely(variant_setup_cmd, user=user, addr=addr, ignore_nz=ignore_nz, 
-		           sudo=sudo)
-	time.sleep(1)
-
 	# Start variant
 	cmd = (variant_cmd.format(variant_id=variant_id,
 		                  temp_config_name=temp_config_name,
@@ -345,11 +337,6 @@ def start_variant(addr, user, target, variant_id):
 	return p
 
 def run_native(addr, user, target):
-	# Kill any previous variants
-	for variant_setup_cmd, sudo, ignore_nz in variant_setup_cmds:
-		run_safely(variant_setup_cmd, user=user, addr=addr, ignore_nz=ignore_nz, 
-		           sudo=sudo)
-	time.sleep(1)
 
 	# Start variant
 	p = run_safely(target, sudo=False, needs_pw=False, user=user, 
