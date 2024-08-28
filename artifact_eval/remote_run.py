@@ -19,6 +19,8 @@ variant_1_ip = "10.0.0.30"
 variant_1_arch = "x86_64"
 client_addr = "example.net"
 
+user = "<username>"
+
 repetitions = 1
 
 
@@ -111,7 +113,6 @@ temp_config_name = "config_temp.ini"
 
 ################################################################################
 
-user = "andre"
 password = None
 stdout_log = None
 stderr_log = None

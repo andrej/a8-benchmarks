@@ -1,7 +1,10 @@
+> Artifact evaluation: Please read artifact_eval/README.md.
+> Thank you.
+
 # monmod benchmarks
 
 Contains scripts and configurations to build the benchmarks/test cases for
-monmod. See [main monmod repository](https://github.com/andrej/monmod).
+monmod. See [main monmod repository](https://github.com/<redacted>/monmod).
 
 
 ## Getting Started

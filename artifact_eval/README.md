@@ -55,9 +55,10 @@ fall:
 
 1. Instantiate three virtual machines running Ubuntu 22.04. We will refer to 
    those three machines as `vm1`, `vm2` and `vm3`. `vm1` and `vm2` will run the 
-   variants; `vm3` will be used as a client for benchmarking. One of the
-   machines should be an aarch64 machine, we made it `vm1` in our tests. The 
-   others should be `x86_64` machines.
+   variants; `vm3` will be used as a client for benchmarking. Ideally, one of 
+   the machines should be an aarch64 machine, however it also works if all
+   machines are of the same architecture. We made `vm1` the "odd one out" in our 
+   tests. The others are `x86_64` machines in our tests.
 2. On x86_64 machines, update the kernel. We require `v5.15.154` or possibly 
    newer (though newer kernels are untested).
    ```
