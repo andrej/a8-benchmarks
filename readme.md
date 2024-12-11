@@ -1,12 +1,13 @@
-# monmod benchmarks
+# A⁸ benchmarks
 
 Contains scripts and configurations to build the benchmarks/test cases for
-monmod. See [main monmod repository](https://github.com/andrej/monmod).
+A⁸. See [main A⁸ repository](https://github.com/andrej/a8).
+The artifacts used in the associated paper are available on the _ae2_ branche, see [here](https://github.com/andrej/a8-benchmarks/blob/ae2/artifact_eval/README.md). This is the abstract of that publication:
 
 
 ## Getting Started
 
-1. Install monmod as per the instructions in the main repository.
+1. Install A⁸ as per the instructions in the main repository.
 
 2. Run `bootstrap.sh` to build and install the benchmarks. They will be
    installed locally inside this folder.
@@ -37,7 +38,7 @@ sudo cset shield --cpu 10-12; sudo cset shield --shield --pid $(pidof -s lighttp
 time <target>
 ```
 
-This will report native speeds. We are interested in the total. `<target>` can be `./microbenchmarks/build/getcwd`, `./microbenchmarks/build/read`, and `./microbenchmarks/build/sched_yield` when we run microbenchmarks. Also, `<target>` can be `main` test program in the main monmod repository.
+This will report native speeds. We are interested in the total. `<target>` can be `./microbenchmarks/build/getcwd`, `./microbenchmarks/build/read`, and `./microbenchmarks/build/sched_yield` when we run microbenchmarks. Also, `<target>` can be `main` test program in the main A⁸ repository.
 
 ### To run one variant locally
 
@@ -51,7 +52,7 @@ monmod_run.sh 0 ./configs/one_local.ini <command> <command arguments>
 ```
 
 After that, examine the log file `monmod_0_0.log`; depending on the
-`VERBOSITY` setting used while building monmod (`build_config.h`), more or
+`VERBOSITY` setting used while building A⁸ (`build_config.h`), more or
 less (for lowest verbosity settings _no_) information is logged.
 
 Sometimes, it can be nice to see the log file update while the program is
@@ -100,7 +101,7 @@ This ensures that both machines are using identical configuration files.
 
 _*Important Note:* When running across multiple physical machines, always make
 sure both machines are using exactly the same configuration files, the same
-version of monmod (including build configuration flags) and the same version of
+version of A⁸ (including build configuration flags) and the same version of
 the program you are benchmarking. This is a common source of issues!_
 
 Then, on machine A:
@@ -118,7 +119,7 @@ monmod_run.sh 1 ./configs/two_remote.ini <command> <command arugments>
 
 ## Instructions for specific Benchmarks
 
-Executing the benchmarks in monmod follows the general instructions above. In
+Executing the benchmarks in A⁸ follows the general instructions above. In
 the following, we will just document the `<command>` and `<command arguments>`
 portions of the example commands given above, as well as the used configuration
 files, as those are the only things that really change.
